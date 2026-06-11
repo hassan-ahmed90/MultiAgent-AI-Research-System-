@@ -1,33 +1,34 @@
-from langchain.agents import create_agent
-
-from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain import hub
 from tools import web_search, scrape_url
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
-#model setup
-llm=ChatOllama(model="llama3.1",temperature=0)
+# ── Model Setup ──────────────────────────────────────────────────────────────
+llm = ChatGroq(
+    model="llama3-8b-8192",
+    temperature=0,
+    api_key=os.getenv("GROQ_API_KEY")
+)
 
-# First Agent
-
+# ── Search Agent ─────────────────────────────────────────────────────────────
 def build_search_agent():
-    return create_agent(
-        model=llm,
-        tools=[web_search]
-    )
+    prompt = hub.pull("hwchase17/react")
+    agent = create_react_agent(llm, [web_search], prompt)
+    return AgentExecutor(agent=agent, tools=[web_search], verbose=True, handle_parsing_errors=True)
 
-# Second Agent
-
+# ── Reader Agent ─────────────────────────────────────────────────────────────
 def build_reader_agent():
-    return create_agent(
-        model=llm,
-        tools=[scrape_url]
-    )
+    prompt = hub.pull("hwchase17/react")
+    agent = create_react_agent(llm, [scrape_url], prompt)
+    return AgentExecutor(agent=agent, tools=[scrape_url], verbose=True, handle_parsing_errors=True)
 
-
+# ── Writer Chain ─────────────────────────────────────────────────────────────
 writer_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are an expert research writer. Write clear, structured and insightful reports."),
     ("human", """Write a detailed research report on the topic below.
@@ -48,10 +49,9 @@ Be detailed, factual and professional."""),
 
 writer_chain = writer_prompt | llm | StrOutputParser()
 
-
-#critic chain
+# ── Critic Chain ─────────────────────────────────────────────────────────────
 critic_prompt = ChatPromptTemplate.from_messages([
-     ("system", "You are a sharp and constructive research critic. Be honest and specific."),
+    ("system", "You are a sharp and constructive research critic. Be honest and specific."),
     ("human", """Review the research report below and evaluate it strictly.
 
 Report:
