@@ -3,6 +3,7 @@ streamlit
 langchain
 langchain-community
 langchain-core
+langchain-ollama
 
 tavily-python
 
